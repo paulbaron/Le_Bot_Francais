@@ -8,46 +8,73 @@ import urllib.request, json
 import time
 import datetime
 import pandas as pd
+import GetAPIKey
+import GetRandomNasdaqCompany
 # urllib is for opening URLs to get info
 # json is for reading raw string from URL into json file
 # time is for waiting 1 min before getting more API data
 # Limit of 5 API calls per min, so need to run 3 by 3
+keys = GetAPIKey.GetAPIKey()
 
 def dateTimeToTimestamp(dtIndex):
     return int(time.mktime(datetime.datetime.strptime(dtIndex,"%Y-%m-%d %H:%M:%S").timetuple()))
 
 def stocks(str1='AAPL', year='1', month='1'):
-    APIKEY_ALPHAVANTAGE = "RTGZGXQDPGAOQSHD"
+    print("Stock for " + str1 + " year: " + year + " month: " + month)
     # save url inside variable as raw string
     url = r"https://www.alphavantage.co/query?function=TIME_SERIES_INTRADAY_EXTENDED&symbol=" + str1
     url += r"&interval=5min"
     url += r"&slice=year" + year + r"month" + month
-    url += r"&apikey=" + APIKEY_ALPHAVANTAGE
+    url += r"&apikey=" + keys['AlphaVantage_Key']
 
     # use urllib.request.urlopen() to access API from URL links
     response = urllib.request.urlopen(url)
 
     # from var saved (HTTPresponse type), use .read() + .decode('utf-8')
     string = StringIO(response.read().decode('utf-8'))
-    df = pd.read_csv(string, sep=",")
-    df['timestamp'] = list(map(dateTimeToTimestamp, df['time']))
-    df = df.drop(columns=['time'])
+    sub_df = pd.read_csv(string, sep=",")
+    print(sub_df)
+    if len(sub_df.index) == 1:
+        return sub_df
+    if 'time' in sub_df:
+        sub_df['timestamp'] = list(map(dateTimeToTimestamp, sub_df['time']))
+        sub_df = sub_df.drop(columns=['time'])
+        sub_df.set_index("timestamp", inplace=True)
+        print(sub_df)
+    else:
+        print("Print the note!!!!")
+        print(sub_df[0])
+    return sub_df
+
+def loadDataFrame(name): #tmp.fed   
+    df = pd.read_feather(name)
     df.set_index("timestamp", inplace=True)
-    print(df)
     return df
 
-def loadDataFrame(name): #tmp.fed
-    df = pd.read_feather('tmp.fed')
-    df.set_index("timestamp", inplace=True)
-    return df
-
-def saveDataFrame(df, name='tmp.fed'):
+def saveDataFrame(df, name):
     df = df.reset_index()
-    df.to_feather('tmp.fed')
+    df.to_feather(name)
 
 
-df = stocks('AAPL')
-saveDataFrame(df, 'toto.fed')
-df = loadDataFrame('toto.fed')
+symbols = GetRandomNasdaqCompany.GetNasdaqCompaniesSymbols(1)
+symbols = symbols[:30]
 
-print(df)
+for symbol in symbols:
+    df = pd.DataFrame()
+    keepGather = True
+    for year in range(1, 3):
+        for month in range(1, 13):
+            if keepGather:
+                sub_df = stocks(symbol, f'{year}', f'{month}')
+                if len(sub_df.index) > 1:
+                    df = df.append(sub_df)
+                else:
+                    keepGather = False
+    
+    print(df)
+
+    print("SaveDataFrame")
+    saveDataFrame(df, f'NoUploadData/{symbol}.fed')
+    #print("LoadDataFrame")
+    #df = loadDataFrame(f'NoUploadData/{symbol}.fed')
+    #print(df)

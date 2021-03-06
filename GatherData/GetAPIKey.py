@@ -1,6 +1,6 @@
 import json
 
-f = open("APIKeys.json")
+f = open("GatherData/APIKeys.json")
 apiKeys = json.load(f)
 
 def GetAPIKey():
