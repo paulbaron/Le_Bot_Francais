@@ -10,10 +10,14 @@ import datetime
 import pandas as pd
 import GetAPIKey
 import GetRandomNasdaqCompany
+from os import path
 # urllib is for opening URLs to get info
 # json is for reading raw string from URL into json file
 # time is for waiting 1 min before getting more API data
 # Limit of 5 API calls per min, so need to run 3 by 3
+
+DATAFOLDER = f'NoUploadData'
+
 keys = GetAPIKey.GetAPIKey()
 
 def dateTimeToTimestamp(dtIndex):
@@ -33,14 +37,12 @@ def stocks(str1='AAPL', year='1', month='1'):
     # from var saved (HTTPresponse type), use .read() + .decode('utf-8')
     string = StringIO(response.read().decode('utf-8'))
     sub_df = pd.read_csv(string, sep=",")
-    print(sub_df)
     if len(sub_df.index) == 1:
         return sub_df
     if 'time' in sub_df:
         sub_df['timestamp'] = list(map(dateTimeToTimestamp, sub_df['time']))
         sub_df = sub_df.drop(columns=['time'])
         sub_df.set_index("timestamp", inplace=True)
-        print(sub_df)
     else:
         print("Print the note!!!!")
         print(sub_df[0])
@@ -57,7 +59,10 @@ def saveDataFrame(df, name):
 
 
 symbols = GetRandomNasdaqCompany.GetNasdaqCompaniesSymbols(1)
-symbols = symbols[:30]
+symbols = symbols[0:120]
+
+# remove already downloaded files
+symbols = [f for f in symbols if path.exists(f'{DATAFOLDER}/{f}.fed') == False]
 
 for symbol in symbols:
     df = pd.DataFrame()
@@ -74,7 +79,7 @@ for symbol in symbols:
     print(df)
 
     print("SaveDataFrame")
-    saveDataFrame(df, f'NoUploadData/{symbol}.fed')
+    saveDataFrame(df, f'{DATAFOLDER}/{symbol}.fed')
     #print("LoadDataFrame")
-    #df = loadDataFrame(f'NoUploadData/{symbol}.fed')
+    #df = loadDataFrame(f'{DATAFOLDER}/{symbol}.fed')
     #print(df)
