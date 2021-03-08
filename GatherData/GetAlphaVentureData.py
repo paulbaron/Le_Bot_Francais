@@ -79,7 +79,8 @@ for symbol in symbols:
     print(df)
 
     print("SaveDataFrame")
-    saveDataFrame(df, f'{DATAFOLDER}/{symbol}.fed')
+    if len(df.index) > 1:
+        saveDataFrame(df, f'{DATAFOLDER}/{symbol}.fed')
     #print("LoadDataFrame")
     #df = loadDataFrame(f'{DATAFOLDER}/{symbol}.fed')
     #print(df)
