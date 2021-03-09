@@ -5,6 +5,7 @@
 import sys
 from io import StringIO
 import urllib.request, json
+from urllib.error import URLError, HTTPError
 import time
 import datetime
 import pandas as pd
@@ -32,13 +33,17 @@ def stocks(str1='AAPL', year='1', month='1'):
     url += r"&apikey=" + keys['AlphaVantage_Key']
 
     # use urllib.request.urlopen() to access API from URL links
-    response = urllib.request.urlopen(url)
-
+    try:
+        response = urllib.request.urlopen(url, timeout=20)
+    except response.URLError as e:
+        return False, DataFrame()
     # from var saved (HTTPresponse type), use .read() + .decode('utf-8')
     string = StringIO(response.read().decode('utf-8'))
+
     sub_df = pd.read_csv(string, sep=",")
+
     if len(sub_df.index) == 1:
-        return sub_df
+        return True, sub_df
     if 'time' in sub_df:
         sub_df['timestamp'] = list(map(dateTimeToTimestamp, sub_df['time']))
         sub_df = sub_df.drop(columns=['time'])
@@ -46,7 +51,7 @@ def stocks(str1='AAPL', year='1', month='1'):
     else:
         print("Print the note!!!!")
         print(sub_df[0])
-    return sub_df
+    return True, sub_df
 
 def loadDataFrame(name): #tmp.fed   
     df = pd.read_feather(name)
@@ -67,14 +72,19 @@ symbols = [f for f in symbols if path.exists(f'{DATAFOLDER}/{f}.fed') == False]
 for symbol in symbols:
     df = pd.DataFrame()
     keepGather = True
-    for year in range(1, 3):
-        for month in range(1, 13):
+    step = 1
+    for year in range(1, 3, step):
+        for month in range(1, 13, step):
             if keepGather:
-                sub_df = stocks(symbol, f'{year}', f'{month}')
-                if len(sub_df.index) > 1:
-                    df = df.append(sub_df)
+                succeed, sub_df = stocks(symbol, f'{year}', f'{month}')
+                if succeed:
+                    step = 1 # yes we can continue
+                    if len(sub_df.index) > 1:
+                        df = df.append(sub_df)
+                    else:
+                        keepGather = False
                 else:
-                    keepGather = False
+                    step = 0 # retry this month
     
     print(df)
 
