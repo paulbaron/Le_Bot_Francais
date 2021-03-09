@@ -26,6 +26,18 @@ filesNames = [f for f in filesNames if path.exists(f'{DATAFOLDER}/__WithIndicato
 
 print(filesNames)
 
+# those are the ones with barely no data
+#QSTICK => 12
+#WTO => 12
+#FISH => 12
+#ICHIMOKU => 12
+#APZ => 12
+#SQZMI => 12
+#VPT => 12
+#FVE => 12
+#VFI => 12
+#MSD => 12
+#STC => 12
 indicators = ['SMA','SMM','SSMA','EMA','DEMA','TEMA','TRIMA','TRIX','VAMA','ER','KAMA','ZLEMA','WMA','HMA','EVWMA','VWAP','SMMA','MACD','PPO','VW_MACD','EV_MACD','MOM','ROC','RSI','IFT_RSI','TR','ATR','BBANDS','BBWIDTH','MOBO','PERCENT_B','KC','DO','DMI','ADX','PIVOT','PIVOT_FIB','STOCH','STOCHD','STOCHRSI','WILLIAMS','UO','AO','MI','VORTEX','KST','TSI','TP','ADL','CHAIKIN','MFI','OBV','WOBV','VZO','PZO','EFI','CFI','EBBP','EMV','CCI','COPP','BASP','BASPN','CMO','CHANDELIER','QSTICK','WTO','FISH','ICHIMOKU','APZ','SQZMI','VPT','FVE','VFI','MSD','STC']
 for fileName in filesNames:
     loaded_df = loadDataFrame(f'{DATAFOLDER}/{fileName}.fed')

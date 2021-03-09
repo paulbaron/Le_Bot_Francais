@@ -12,8 +12,10 @@ import numpy as np
 DATAFOLDER = f'NoUploadData'
 RATIO_TO_PREDICT = "IBM"
 SEQ_LEN = 60 
-NAME = f"{RATIO_TO_PREDICT}-SEQ-{SEQ_LEN}"
+NAME = f"DATA-LEN-10-SEQ-60"
 
+# uncomment to force CPU
+tf.config.experimental.set_visible_devices([], "DML")
 
 def loadDataFrame(name):
     df = pd.read_feather(name)
@@ -28,6 +30,7 @@ class RNNStrategy(Strategy):
         model_name = f"ModelTraining\models\{NAME}"
         print("ModelTraining\models\{}".format(NAME))
         self.model = keras.models.load_model("ModelTraining\models\{}".format(NAME), compile=True)
+        self.lastWasBuy = False
 
     def next(self):
 
@@ -35,6 +38,14 @@ class RNNStrategy(Strategy):
 
         #self.rolled_data.append([n for n in self.data.df.values[-1]])  # store all but the target
         sub_df = self.data.df[[f"Close", f"High", f"Low", f"Volume"]]
+        #print(sub_df)
+        for col in sub_df.columns:
+            sub_df[col] = sub_df[col].pct_change()  # pct change "normalizes" the different currencies (each crypto coin has vastly diff values, we're really more interested in the other coin's movements)
+            pd.set_option('use_inf_as_na', True)
+            sub_df.dropna(inplace=True)
+        if (len(sub_df.values) == 0):
+            return
+        print(sub_df)
         input_data = np.array([n for n in sub_df.values[-1]])
 
         sequential_data = []
@@ -53,15 +64,17 @@ class RNNStrategy(Strategy):
         #print(sequential_data)
         decision = self.model.predict(sequential_data)
         print(f"decision: {decision}")
-        if decision[0][0] > 0.35:
+        if decision[0][0] > 0.5 and self.lastWasBuy == False:
             self.buy()
-        elif decision[0][1] > 0.71:
+            self.lastWasBuy = True
+        elif decision[0][1] > 0.5 and self.lastWasBuy == True:
             self.sell()
+            self.lastWasBuy = False
 
 loaded_df = loadDataFrame(f'{DATAFOLDER}/{RATIO_TO_PREDICT}.fed')
 loaded_df = loaded_df.rename(columns={"open":"Open", "high":"High", "low":"Low", "close":"Close", "volume":"Volume"})
 print(len(loaded_df))
-loaded_df = loaded_df.sort_index()[200:400] # hard limite for the first 5000 minutes
+loaded_df = loaded_df.sort_index()[200:800] # hard limite for the first 5000 minutes
 print(loaded_df)
 
 bt = Backtest(loaded_df, RNNStrategy, commission=.002,
