@@ -17,10 +17,10 @@ from os.path import isfile, join
 
 DATAFOLDER = f'NoUploadData'
 
-SEQ_LEN = 120  # how long of a preceeding sequence to collect for RNN
+SEQ_LEN = 60  # how long of a preceeding sequence to collect for RNN
 FUTURE_PERIOD_PREDICT = 3  # how far into the future are we trying to predict?
 EPOCHS = 5  # how many passes through our data
-RATIOS_LEN = 20
+RATIOS_LEN = 15
 BATCH_SIZE =  2048  # how many batches? Try smaller batch if you're getting OOM (out of memory) errors.
 NAME = f"IND_DATA-LEN-{RATIOS_LEN}-SEQ-{SEQ_LEN}"
 
@@ -49,6 +49,7 @@ def classify(current, future):
 def preprocess_df(df):
 
     df = df.drop("future", 1)  # don't need this anymore.
+    df = df.drop("close", 1)  # don't need this anymore.
     pd.set_option('use_inf_as_na', True)
 
     df.dropna(inplace=True)  # remove the nas created by pct_change
@@ -112,7 +113,7 @@ for RATIO in RATIOS:
     df = df[1:]
     #for col in df.columns:
     #    print(col)
-    df = df[[f"close", f"SMA", f"MACD_MACD", f"MACD_SIGNAL", f"STOCHRSI", f"EBBP_Bull.", f"EBBP_Bear.", f"BASP_Buy.", f"BASP_Sell."]]  # ignore the other columns besides price and volume
+    df = df[[f"close", f"MACD_MACD", f"MACD_SIGNAL", f"STOCHRSI", f"EBBP_Bull.", f"EBBP_Bear.", f"BASP_Buy.", f"BASP_Sell."]]  # ignore the other columns besides price and volume
     main_df = df  # then it's just the current df
     
     main_df.fillna(method="ffill", inplace=True)  # if there are gaps in data, use previously known values
