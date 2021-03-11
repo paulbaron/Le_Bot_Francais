@@ -18,7 +18,7 @@ from os.path import isfile, join
 DATAFOLDER = f'NoUploadData'
 
 SEQ_LEN = 60  # how long of a preceeding sequence to collect for RNN
-FUTURE_PERIOD_PREDICT = 3  # how far into the future are we trying to predict?
+FUTURE_PERIOD_PREDICT = 15  # how far into the future are we trying to predict?
 EPOCHS = 5  # how many passes through our data
 RATIOS_LEN = 15
 BATCH_SIZE =  2048  # how many batches? Try smaller batch if you're getting OOM (out of memory) errors.
@@ -45,20 +45,43 @@ def classify(current, future):
     else:  # otherwise... it's a 0!
         return 0
 
+def classifyWithRange(df):
+    df_len = len(df.values)
+    #print(df_len)
+    df_target = [0.0] * df_len
+    for i in range(df_len):
+        sumGreater = 0
+        sumLower = 0
+        for j in range(1,min(FUTURE_PERIOD_PREDICT, df_len - i)):
+            diff = df['close'][df.index[i + j]] - df['close'][df.index[i]]
+            if diff > 0:
+                sumGreater += pow(diff, 1)
+            else:
+                sumLower += abs(pow(diff, 1))
+
+        #if (sumGreater + sumLower) > 0:
+        #    df_target[i] = float(sumGreater) / float(sumGreater + sumLower)
+        #    #print(f"{sumGreater} {sumLower} {df_target[i]}")
+        if sumGreater > sumLower:
+            df_target[i] = 1
+        else:
+            df_target[i] = 0
+#        print(df_target[i])
+    df['target'] = df_target
+    print(df['target'])
+
 
 def preprocess_df(df):
 
-    df = df.drop("future", 1)  # don't need this anymore.
     df = df.drop("close", 1)  # don't need this anymore.
     pd.set_option('use_inf_as_na', True)
 
     df.dropna(inplace=True)  # remove the nas created by pct_change
-    for col in df.columns:  # go through all of the columns
-        if col != "target":  # normalize all ... except for the target itself!
-            if (col == "close"):
-                df[col] = df[col].pct_change()  # pct change "normalizes" the different currencies (each crypto coin has vastly diff values, we're really more interested in the other coin's movements)
-                pd.set_option('use_inf_as_na', True)
-                df.dropna(inplace=True)  # remove the nas created by pct_change
+    #for col in df.columns:  # go through all of the columns
+    #    if col != "target":  # normalize all ... except for the target itself!
+    #        #if (col == "close"):
+    #        df[col] = df[col].pct_change()  # pct change "normalizes" the different currencies (each crypto coin has vastly diff values, we're really more interested in the other coin's movements)
+    #df.dropna(inplace=True)  # remove the nas created by pct_change
 
     sequential_data = []  # this is a list that will CONTAIN the sequences
     prev_days = deque(maxlen=SEQ_LEN)  # These will be our actual sequences. They are made with deque, which keeps the maximum length by popping out older values as new ones come in
@@ -74,9 +97,9 @@ def preprocess_df(df):
     sells = []  # list that will store our sell sequences and targets
 
     for seq, target in sequential_data:  # iterate over the sequential data
-        if target == 0:  # if it's a "not buy"
+        if target < 0.45:  # if it's a "not buy"
             sells.append([seq, target])  # append to sells list
-        elif target == 1:  # otherwise if the target is a 1...
+        elif target > 0.55:  # otherwise if the target is a 1...
             buys.append([seq, target])  # it's a buy!
 
     random.shuffle(buys)  # shuffle the buys
@@ -111,8 +134,6 @@ for RATIO in RATIOS:
     df = loadDataFrame(f'{DATAFOLDER}/__WithIndicators/{RATIO}_WI.fed')
 
     df = df[1:]
-    #for col in df.columns:
-    #    print(col)
     df = df[[f"close", f"MACD_MACD", f"MACD_SIGNAL", f"STOCHRSI", f"EBBP_Bull.", f"EBBP_Bear.", f"BASP_Buy.", f"BASP_Sell."]]  # ignore the other columns besides price and volume
     main_df = df  # then it's just the current df
     
@@ -120,17 +141,11 @@ for RATIO in RATIOS:
     main_df.dropna(inplace=True)
     
     
-    main_df['future'] = main_df[f'close'].shift(-FUTURE_PERIOD_PREDICT)
-    main_df['target'] = list(map(classify, main_df[f'close'], main_df['future']))
+    classifyWithRange(main_df)
+    #main_df['future'] = main_df[f'close'].shift(-FUTURE_PERIOD_PREDICT)
+    #main_df['target'] = list(map(classify, main_df[f'close'], main_df['future']))
     
     main_df.dropna(inplace=True)
-    
-    
-    ## here, split away some slice of the future data from the main main_df.
-    #times = sorted(main_df.index.values)
-    #last_50pct = sorted(main_df.index.values)[-int(0.5*len(times))]
-    #
-    #main_df = main_df[(main_df.index < last_50pct)]
     
     times = sorted(main_df.index.values)
     last_5pct = sorted(main_df.index.values)[-int(0.05*len(times))]

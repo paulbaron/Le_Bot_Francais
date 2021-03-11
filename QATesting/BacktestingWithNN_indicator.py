@@ -11,7 +11,7 @@ import numpy as np
 from finta import TA
 
 DATAFOLDER = f'NoUploadData'
-RATIO_TO_PREDICT = "IBM"
+RATIO_TO_PREDICT = "JMIA"
 RATIOS_LEN = 15
 SEQ_LEN = 60 
 NAME = f"IND_DATA-LEN-{RATIOS_LEN}-SEQ-{SEQ_LEN}"
@@ -76,21 +76,24 @@ class RNNStrategy(Strategy):
         #print(sequential_data.shape)
         #print(sequential_data)
         decision = self.model.predict(sequential_data)
-        print(f"decision: {decision}")
-        if decision[0][0] > 0.5 and self.lastWasBuy == False:
+        if decision[0][0] > 0.6 and self.lastWasBuy == False:
+            print(f"decision: {decision} BUY")
             self.buy()
             self.lastWasBuy = True
-        elif decision[0][1] > 0.5 and self.lastWasBuy == True:
+        elif decision[0][1] > 0.6 and self.lastWasBuy == True:
+            print(f"decision: {decision} SELL")
             self.sell()
             self.lastWasBuy = False
+        else:
+            print(f"decision: {decision}")
 
 loaded_df = loadDataFrame(f'{DATAFOLDER}/{RATIO_TO_PREDICT}.fed')
 loaded_df = loaded_df.rename(columns={"open":"Open", "high":"High", "low":"Low", "close":"Close", "volume":"Volume"})
 print(len(loaded_df))
-loaded_df = loaded_df.sort_index()[-800:] # hard limite for the first 5000 minutes
+loaded_df = loaded_df.sort_index()[800:2800] # hard limite for the first 5000 minutes
 print(loaded_df)
 
-bt = Backtest(loaded_df, RNNStrategy, commission=.002,
+bt = Backtest(loaded_df, RNNStrategy, commission=.002, # this need to be 0.002
               exclusive_orders=True)
 stats = bt.run()
 bt.plot()
