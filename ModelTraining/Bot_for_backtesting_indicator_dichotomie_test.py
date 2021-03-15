@@ -22,7 +22,7 @@ FUTURE_PERIOD_PREDICT = 10  # how far into the future are we trying to predict?
 EPOCHS = 5  # how many passes through our data
 RATIOS_LEN = 5
 BATCH_SIZE =  2048  # how many batches? Try smaller batch if you're getting OOM (out of memory) errors.
-NAME = f"RAW-LEN-{RATIOS_LEN}-SEQ-{SEQ_LEN}"
+NAME = f"SCALED-LEN-{RATIOS_LEN}-SEQ-{SEQ_LEN}"
 
 filesNames = [f for f in listdir(f"{DATAFOLDER}/__WithIndicators") if isfile(join(f"{DATAFOLDER}/__WithIndicators", f))]
 filesNames = [f for f in filesNames if '^' not in f]
@@ -103,19 +103,23 @@ def classifyWithRange(df):
     df['target'] = df_target
     #print(df['target'])
 
+def normalized(col):
+    x = col.values #returns a numpy array
+    d = 2.*(x - np.min(x))/np.ptp(x)-1
+    return d
 
-def preprocess_df(df):
 
-    df = df.drop("close", 1)  # don't need this anymore.
+def preprocess_df(param_df):
+
+    df = pd.DataFrame(param_df)
+    #df = df.drop("close", 1)  # don't need this anymore.
     pd.set_option('use_inf_as_na', True)
 
     df.dropna(inplace=True)  # remove the nas created by pct_change
-    #for col in df.columns:  # go through all of the columns
-    #    if col != "target":  # normalize all ... except for the target itself!
-    #        #if (col == "close"):
-    #        df[col] = df[col].pct_change()  # pct change "normalizes" the different currencies (each crypto coin has vastly diff values, we're really more interested in the other coin's movements)
-    #df.dropna(inplace=True)  # remove the nas created by pct_change
-
+    for col in df.columns:  # go through all of the columns
+        if col != "target":  # normalize all ... except for the target itself!
+            df[col] = normalized(df[col])
+    df.dropna(inplace=True)  # remove the nas created by pct_change
     sequential_data = []  # this is a list that will CONTAIN the sequences
     prev_days = deque(maxlen=SEQ_LEN)  # These will be our actual sequences. They are made with deque, which keeps the maximum length by popping out older values as new ones come in
 
@@ -177,7 +181,8 @@ for indicatorID in range(len(AllindicatorColumns)):
         df = loadDataFrame(f'{DATAFOLDER}/__WithIndicators/{RATIO}_WI.fed')
         df = df[1:]
         colnames = [f"close"] + [AllindicatorColumns[indicatorID]]
-        #print(colnames)
+        #for colID in colnames:
+        #    print(f"{colID} [{df[colID].min()}/{df[colID].max()}]")
         df = df[colnames]  # ignore the other columns besides price and volume
         main_df = df  # then it's just the current df
 
@@ -233,7 +238,7 @@ for indicatorID in range(len(AllindicatorColumns)):
 
 
 
-    print(global_train_x.shape[1:])
+    #print(global_train_x.shape[1:])
     model = Sequential()
     model.add(GRU(128, input_shape=(global_train_x.shape[1:]), return_sequences=True))
     model.add(Dropout(0.2))
